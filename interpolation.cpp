@@ -24,11 +24,8 @@ double Interpolation::get(double angle)
     int i = (int)((angle - leftLimit) / step);
 
     if (angle == (angle / step) * step)
-    {
-//        double c = Convert.ToDouble(table.GetValue(i));
-        double c = table->takeAt(i);
-        return c;
-    }
+//        return Convert.ToDouble(table.GetValue(i));
+        return table->takeAt(i);
 
     if (angle > 175)
         //return Convert.ToDouble(table.GetValue(36));
