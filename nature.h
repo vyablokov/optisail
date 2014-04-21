@@ -11,8 +11,9 @@ class Nature
     double windVelocity;
     double windAngle;
     double k;
-    double gAcceleration;
     bool useWindB;
+    static double gAcceleration;
+    static double PI;
 public:
     Nature();
     void setK(double kk) { k = kk; }
@@ -46,7 +47,6 @@ public:
     double getSafeArccos(double cosOfAngle);
     double getCosFromDegrees(double angle);
     double getSinFromDegrees(double angle);
-
 };
 
 #endif // NATURE_H
