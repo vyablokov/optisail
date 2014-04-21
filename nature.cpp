@@ -1,8 +1,6 @@
 #include "nature.h"
 #include <cmath>
 
-#define PI 3.14
-
 Nature::Nature ()
 {
     airWeight = 1.29;
@@ -11,6 +9,7 @@ Nature::Nature ()
     windAngle = 0;
     k = 2.0 * 0.01;
     useWindB = false;
+    PI = 3.14;
     gAcceleration = 9.8;
 }
 

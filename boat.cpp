@@ -1,321 +1,260 @@
 #include "boat.h"
 
-public Boat::Boat (double m1, double sailSurf, double s1, double azimuth1, Nature N)
+Boat::Boat (double m, double sailSurf, double s1, double azimuth1, Nature *N)
 {
-    Nature = N;
-
-    m = m1;
-    SailS = sailSurf;
+    World = N;
+    mass = m;
+    sailSurface = sailSurf;
     s = s1;
-    Azimuth = azimuth1;
-    VBoat = 0;
+    azimuth = azimuth1;
+    boatVelocity = 0;
     a = 0;
 
     x = 36.0;
     y = 55.0;
 
-    Sail2BoatAngle = 0;
-    Sail2BoatOrintation = "0";
+    sailToBoatAngle = 0;
+    sailToBoatOrientation = "0";
 
-    UpdateSailOrintation();
+    updateSailOrientation();
 
-    RudderAngle = 0;
+    rudderAngle = 0;
 
+    QVector<double> *cx  = new QVector<double>(37);
+    cx->insert(0, 0.1);
+    cx->insert(1, 0.1);
+    cx->insert(2, 0.15);
+    cx->insert(3, 0.18);
+    cx->insert(4, 0.23);
+    cx->insert(5, 0.3);
+    cx->insert(6, 0.4);
+    cx->insert(7, 0.6);
+    cx->insert(8, 0.7);
+    cx->insert(9, 0.8);
+    cx->insert(10, 0.85);
+    cx->insert(11, 0.93);
+    cx->insert(12, 1);
+    cx->insert(13, 1.07);
+    cx->insert(14, 1.12);
+    cx->insert(15, 1.19);
+    cx->insert(16, 1.2);
+    cx->insert(17, 1.23);
+    cx->insert(18, 1.25);
+    cx->insert(19, 1.23);
+    cx->insert(20, 1.2);
+    cx->insert(21, 1.19);
+    cx->insert(22, 1.12);
+    cx->insert(23, 1.07);
+    cx->insert(24, 1);
+    cx->insert(25, 0.93);
+    cx->insert(26, 0.85);
+    cx->insert(27, 0.8);
+    cx->insert(28, 0.7);
+    cx->insert(29, 0.6);
+    cx->insert(30, 0.4);
+    cx->insert(31, 0.3);
+    cx->insert(32, 0.23);
+    cx->insert(33, 0.18);
+    cx->insert(34, 0.15);
+    cx->insert(35, 0.1);
+    cx->insert(36, 0.1);
 
+    Cx = new Interpolation (cx, cx->size(), 5, 0, 180);
 
-    Array cx  = new double [37];
-    cx.SetValue (0.1, 0);
-    cx.SetValue( 0.1, 1);
-    cx.SetValue(0.15, 2);
-    cx.SetValue(0.18, 3);
-    cx.SetValue(0.23, 4);
-    cx.SetValue(0.3, 5);
-    cx.SetValue(0.4, 6);
-    cx.SetValue(0.6, 7);
-    cx.SetValue(0.7, 8);
-    cx.SetValue(0.8, 9);
-    cx.SetValue(0.85, 10);
-    cx.SetValue(0.93, 11);
-    cx.SetValue(1, 12);
-    cx.SetValue(1.07, 13);
-    cx.SetValue(1.12, 14);
-    cx.SetValue(1.19, 15);
-    cx.SetValue(1.2, 16);
-    cx.SetValue(1.23, 17);
-    cx.SetValue(1.25, 18);
-    cx.SetValue(1.23, 19);
-    cx.SetValue(1.2, 20);
-    cx.SetValue(1.19, 21);
-    cx.SetValue(1.12, 22);
-    cx.SetValue(1.07, 23);
-    cx.SetValue(1, 24);
-    cx.SetValue(0.93, 25);
-    cx.SetValue(0.85, 26);
-    cx.SetValue(0.8, 27);
-    cx.SetValue(0.7, 28);
-    cx.SetValue(0.6, 29);
-    cx.SetValue(0.4, 30);
-    cx.SetValue(0.3, 31);
-    cx.SetValue(0.23, 32);
-    cx.SetValue(0.18, 33);
-    cx.SetValue(0.15, 34);
-    cx.SetValue(0.1, 35);
-    cx.SetValue(0.1, 36);
+    QVector<double> *cy = new QVector<double>(37);
+    cy->insert(0, 0);
+    cy->insert(1, 0.3);
+    cy->insert(2, 0.5);
+    cy->insert(3, 0.9);
+    cy->insert(4, 1.2);
+    cy->insert(5, 1.4);
+    cy->insert(6, 1.6);
+    cy->insert(7, 1.3);
+    cy->insert(8, 1.14);
+    cy->insert(9, 1.09);
+    cy->insert(10, 1);
+    cy->insert(11, 0.87);
+    cy->insert(12, 0.78);
+    cy->insert(13, 0.66);
+    cy->insert(14, 0.55);
+    cy->insert(15, 0.4);
+    cy->insert(16, 0.3);
+    cy->insert(17, 0.2);
+    cy->insert(18, 0);
+    cy->insert(19, 0.3);
+    cy->insert(20, 0.35);
+    cy->insert(21, 0.4);
+    cy->insert(22, 0.45);
+    cy->insert(23, 0.5);
+    cy->insert(24, 0.6);
+    cy->insert(25, 0.8);
+    cy->insert(26, 1.0);
+    cy->insert(27, 1.2);
+    cy->insert(28, 1.1);
+    cy->insert(29, 0.9);
+    cy->insert(30, 0.8);
+    cy->insert(31, 0.7);
+    cy->insert(32, 0.4);
+    cy->insert(33, 0.35);
+    cy->insert(34, 0.2);
+    cy->insert(35, 0.1);
+    cy->insert(36, 0);
 
-    int Size = cx.Length;
-    Cx = new Interpolation (cx, Size, 5, 0, 180);
-
-    Array cy = new double [37];
-    cy.SetValue(0, 0);
-    cy.SetValue(0.3, 1);
-    cy.SetValue(0.5, 2);
-    cy.SetValue(0.9, 3);
-    cy.SetValue(1.2, 4);
-    cy.SetValue(1.4, 5);
-    cy.SetValue(1.6, 6);
-    cy.SetValue(1.3, 7);
-    cy.SetValue(1.14, 8);
-    cy.SetValue(1.09, 9);
-    cy.SetValue(1, 10);
-    cy.SetValue(0.87, 11);
-    cy.SetValue(0.78, 12);
-    cy.SetValue(0.66, 13);
-    cy.SetValue(0.55, 14);
-    cy.SetValue(0.4, 15);
-    cy.SetValue(0.3, 16);
-    cy.SetValue(0.2, 17);
-    cy.SetValue(0, 18);
-    cy.SetValue(0.3, 19);
-    cy.SetValue(0.35, 20);
-    cy.SetValue(0.4, 21);
-    cy.SetValue(0.45, 22);
-    cy.SetValue(0.5, 23);
-    cy.SetValue(0.6, 24);
-    cy.SetValue(0.8, 25);
-    cy.SetValue(1.0, 26);
-    cy.SetValue(1.2, 27);
-    cy.SetValue(1.1, 28);
-    cy.SetValue(0.9, 29);
-    cy.SetValue(0.8, 30);
-    cy.SetValue(0.7, 31);
-    cy.SetValue(0.4, 32);
-    cy.SetValue(0.35, 33);
-    cy.SetValue(0.2, 34);
-    cy.SetValue(0.1, 35);
-    cy.SetValue(0, 36);
-
-    Size = cy.Length;
-    Cy = new Interpolation (cy, Size, 5, 0, 180);
-
+    Cy = new Interpolation (cy, cy->size(), 5, 0, 180);
 }
 
-
-// /////////////////////////////////////////////////////////////////////
-public double getM ()  {return m;}
-public double getSailS () {return SailS;}
-public double getS ()  {return s;}
-public double getAzimuth () {return Azimuth;}
-public double getX () {return x;}
-public double getY() {return y;}
-public double getVBoat() { return VBoat;}
-public double getA() {return a;}
-public double getSailAngle() { return Sail2BoatAngle; }
-public double getFFriction() { return FFriction; }
-public double getFTraction() { return FTraction; }
-public double getFWaterResist() { return FWaterResist; }
-
-public string getSailSide() { return SailSide; }
-public double getAttacAngle() { return AttacAngle; }
-public string getSail2BoatOrintation() { return Sail2BoatOrintation; }
-
-public double getRudderAngle() { return RudderAngle; }
-
-
-public void setSailS(double s) { SailS = s; }
-public void setS(double s1) { s = s1; }
-public void setM(double m1) { m = m1; }
-
-public void setAzimuth (double azimuth) { Azimuth = azimuth; }
-public void setVBoat (double v) {VBoat = v;}
-public void setA (double a1) {a = a1;}
-
-public void setSail2BoatAngle (double angle) {Sail2BoatAngle = angle;}
-public void setSail2BoatOrintation(string orintation) { Sail2BoatOrintation = orintation; }
-
-public void setX(double x1) {x = x1;}
-public void setY(double y1) {y = y1;}
-public void setRudderAngle(double angle) { RudderAngle = angle; }
-
-
-public double DecRudderAngle()
+double Boat::decRudderAngle()
 {
-    if (RudderAngle > -30) --RudderAngle;
-    return RudderAngle;
+    if (rudderAngle > -30) --rudderAngle;
+    return rudderAngle;
 }
 
-public double IncRudderAngle()
+double Boat::incRudderAngle()
 {
-    if (RudderAngle < 30) ++RudderAngle;
-    return RudderAngle;
+    if (rudderAngle < 30) ++rudderAngle;
+    return rudderAngle;
 }
 
-public void OptimiseSailAngle (int WindAngle)
+void Boat::optimizeSailAngle (int windAngle)
 {
     double speed = 0;
-    Azimuth = 0;
-    Nature.setWindAngle(WindAngle);
+    azimuth = 0;
+    World->setWindAngle(windAngle);
 
-    Sail2BoatOrintation = "L";
-    Sail2BoatAngle = 0;
-    double nextSpeed = BoatSpeed();
+    sailToBoatOrientation = "L";
+    sailToBoatAngle = 0;
+    double nextSpeed = boatSpeed();
     do
     {
-        Sail2BoatAngle += 5;
+        sailToBoatAngle += 5;
         speed = nextSpeed;
-        nextSpeed = BoatSpeed();
-    } while (speed <= nextSpeed && Sail2BoatAngle < 90);
-    Sail2BoatAngle -= 5;
-    double LeftMax = Sail2BoatAngle;
-    double LeftVMax = speed;
+        nextSpeed = boatSpeed();
+    } while (speed <= nextSpeed && sailToBoatAngle < 90);
+    sailToBoatAngle -= 5;
+    double leftMax = sailToBoatAngle;
+    double leftMaxVelocity = speed;
 
-    Sail2BoatOrintation = "R";
-    Sail2BoatAngle = 0;
-    nextSpeed = BoatSpeed();
+    sailToBoatOrientation = "R";
+    sailToBoatAngle = 0;
+    nextSpeed = boatSpeed();
     do
     {
-        Sail2BoatAngle += 5;
+        sailToBoatAngle += 5;
         speed = nextSpeed;
-        nextSpeed = BoatSpeed();
-    } while (speed <= nextSpeed && Sail2BoatAngle < 90);
-    Sail2BoatAngle -= 5;
-    double RightMax = Sail2BoatAngle;
-    double RightVMax = speed;
+        nextSpeed = boatSpeed();
+    } while (speed <= nextSpeed && sailToBoatAngle < 90);
+    sailToBoatAngle -= 5;
+    double rightMax = sailToBoatAngle;
+    double rightMaxVelocity = speed;
 
-    if (LeftVMax >= RightVMax)
+    if (leftMaxVelocity >= rightMaxVelocity)
     {
-        Sail2BoatAngle = LeftMax;
-        Sail2BoatOrintation = "L";
-        VBoat = LeftVMax;
+        sailToBoatAngle = leftMax;
+        sailToBoatOrientation = "L";
+        boatVelocity = leftMaxVelocity;
     }
     else
     {
-        Sail2BoatAngle = RightMax;
-        Sail2BoatOrintation = "R";
-        VBoat = RightVMax;
+        sailToBoatAngle = rightMax;
+        sailToBoatOrientation = "R";
+        boatVelocity = rightMaxVelocity;
     }
-
-
 }
 
-public double BoatSpeed ()
+double Boat::boatSpeed ()
 {
     double delta_a = 0.001;
-    VBoat = 0;
+    boatVelocity = 0;
     a = 0;
 
     do
     {
-        Step ();
+        step();
     } while (a > delta_a);
 
-    return VBoat;
+    return boatVelocity;
 }
 
-// ///////////////////////////////////////////////////////////////////////////////////
-
-public double SailAzimuth()
+double Boat::sailAzimuth()
 {
-    if (Sail2BoatOrintation == "L") return Nature.add360(Azimuth, Sail2BoatAngle);
-    else return Nature.sub360(Azimuth, Sail2BoatAngle);
+    if (sailToBoatOrientation == "L")
+        return World->add360(azimuth, sailToBoatAngle);
+    else
+        return World->sub360(azimuth, sailToBoatAngle);
 }
 
-// /////////////////////////////////////////////////////////////////////////////////
-
-public void UpdateSailOrintation()
+void Boat::updateSailOrientation()
 {
-    AttacAngle = Nature.sub360(SailAzimuth(), Nature.getWindAngle(VBoat, Azimuth));
+    attackAngle = World->sub360(sailAzimuth(), World->getWindAngle(boatVelocity, azimuth));
 
-    if (AttacAngle > 180)
+    if (attackAngle > 180)
     {
-        SailSide = "Out";
-        AttacAngle = 360 - AttacAngle;
+        sailSide = "Out";
+        attackAngle = 360 - attackAngle;
     }
-    else SailSide = "In";
+    else sailSide = "In";
 
-    if (Sail2BoatOrintation == "L")
+    if (sailToBoatOrientation == "L")
     {
-        if (SailSide == "In") SailSide = "Out";
-        else SailSide = "In";
+        if (sailSide == "In") sailSide = "Out";
+        else sailSide = "In";
     }
 }
 
-// //////////////////////////////////////////////////////////////////////////////////
-
-public void CountForses()
+void Boat::calculateForces()
 {
-    FWaterResist = -Nature.FWaterResist(VBoat, s);
-    if (VBoat < 0) FWaterResist *= -1;
+    waterResistForce = -World->getWaterResistForce(boatVelocity, s);
+    if (boatVelocity < 0) waterResistForce *= -1;
 
-    FFriction = Nature.FFriction(Cx.get(AttacAngle), SailS, Nature.getVWind(VBoat, Azimuth));
-    FTraction = Nature.FTraction(Cy.get(AttacAngle), SailS, Nature.getVWind(VBoat, Azimuth));
-    if (getSailSide() == "Out") FTraction *= -1;
+    frictionForce = World->getFrictionForce(Cx->get(attackAngle), sailSurface, World->getWindVelocity(boatVelocity, azimuth));
+    tractionForce = World->getTractionForce(Cy->get(attackAngle), sailSurface, World->getWindVelocity(boatVelocity, azimuth));
+    if (getSailSide() == "Out") tractionForce *= -1;
 }
 
-//
-/////////////////////////////////////////////////////////////////////////////////////////
-public void Step()
+void Boat::step()
 {
-    ChangeAzimuth();
-    UpdateSailOrintation();
-
-    CountForses();
+    changeAzimuth();
+    updateSailOrientation();
+    calculateForces();
 
     a = (
-        Nature.SinDeg(Sail2BoatAngle) * FTraction
-        - FFriction * Nature.CosDeg(Nature.getWindAngleToBoat(Azimuth))
-        + FWaterResist
-        ) / m;
+        World->getSinFromDegrees(sailToBoatAngle) * tractionForce
+        - frictionForce * World->getCosFromDegrees(World->getWindAngleToBoat(azimuth))
+        + waterResistForce
+        ) / mass;
 
 
     double delta_t = 0.001;
-    x += (VBoat * delta_t + a * delta_t * delta_t / 2) * Nature.SinDeg(Azimuth) / 100000.0;
-    y -= (VBoat * delta_t + a * delta_t * delta_t / 2) * Nature.CosDeg(Azimuth) / 100000.0;
+    x += (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getSinFromDegrees(azimuth) / 100000.0;
+    y -= (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getCosFromDegrees(azimuth) / 100000.0;
 
-    VBoat = VBoat + a * delta_t;
-
+    boatVelocity += a * delta_t;
 }
 
-// ////////////////////////////////////////////////////////////////////////////////////
-
-public void ChangeAzimuth()
+void Boat::changeAzimuth()
 {
     double c = 2000;
-    double delta_azimuth = VBoat / 100000.0 * RudderAngle * c;
-    Azimuth = Nature.add360(Azimuth, delta_azimuth);
-
+    double delta_azimuth = boatVelocity / 100000.0 * rudderAngle * c;
+    azimuth = World->add360(azimuth, delta_azimuth);
 }
 
-public void TurnSailR() { TurnSail("R"); }
-public void TurnSailL() { TurnSail("L"); }
-
-void TurnSail(string dir)
+void Boat::turnSail(QString dir)
 {
-    string opdir = "L";
+    QString opdir = "L";
     if (dir == "L") opdir = "R";
 
-    if (Sail2BoatOrintation == dir && Sail2BoatAngle < 90)
-        ++Sail2BoatAngle;
+    if (sailToBoatOrientation == dir && sailToBoatAngle < 90)
+        ++sailToBoatAngle;
 
-    else if (Sail2BoatOrintation == "0")
+    else if (sailToBoatOrientation == "0")
     {
-        Sail2BoatAngle = 1;
-        Sail2BoatOrintation = dir;
+        sailToBoatAngle = 1;
+        sailToBoatOrientation = dir;
     }
 
-    else if (Sail2BoatOrintation == opdir)
+    else if (sailToBoatOrientation == opdir)
     {
-        --Sail2BoatAngle;
-        if (Sail2BoatAngle == 0) Sail2BoatOrintation = "0";
+        --sailToBoatAngle;
+        if (sailToBoatAngle == 0) sailToBoatOrientation = "0";
     }
-
 }
