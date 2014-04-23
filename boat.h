@@ -36,18 +36,18 @@ class Boat
 public:
     Boat(double m, double sailSurf, double s1, double azimuth1, Nature *N);
 
-    double getM ()  {return mass;}
-    double getSailS () {return sailSurface;}
+    double getMass ()  {return mass;}
+    double getSailSurface () {return sailSurface;}
     double getS ()  {return s;}
     double getAzimuth () {return azimuth;}
     double getX () {return x;}
     double getY() {return y;}
-    double getVBoat() { return boatVelocity;}
+    double getBoatVelocity() { return boatVelocity;}
     double getA() {return a;}
     double getSailAngle() { return sailToBoatAngle; }
-    double getFFriction() { return frictionForce; }
-    double getFTraction() { return tractionForce; }
-    double getFWaterResist() { return waterResistForce; }
+    double getFrictionForce() { return frictionForce; }
+    double getTractionForce() { return tractionForce; }
+    double getWaterResistForce() { return waterResistForce; }
 
     QString getSailSide() { return sailSide; }
     double getAttackAngle() { return attackAngle; }
@@ -57,7 +57,7 @@ public:
 
     void setSailSurface(double s) { sailSurface = s; }
     void setS(double s1) { s = s1; }
-    void setM(double m) { mass = m; }
+    void setMass(double m) { mass = m; }
 
     void setAzimuth (double az) { azimuth = az; }
     void setBoatVelocity (double v) { boatVelocity = v;}
