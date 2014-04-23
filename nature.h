@@ -12,8 +12,8 @@ class Nature
     double windAngle;
     double k;
     bool useWindB;
-    static double gAcceleration;
-    static double PI;
+    double gAcceleration;
+    double PI;
 public:
     Nature();
     void setK(double kk) { k = kk; }

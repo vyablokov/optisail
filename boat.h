@@ -3,8 +3,6 @@
 
 #include "interpolation.h"
 #include "nature.h"
-#include <QString>
-#include <QVector>
 
 class Boat
 {
