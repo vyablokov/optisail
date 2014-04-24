@@ -10,8 +10,8 @@ Boat::Boat (double m, double sailSurf, double s1, double azimuth1, Nature *N)
     boatVelocity = 0;
     a = 0;
 
-    x = 36.0;
-    y = 55.0;
+    x = 0.0;
+    y = 0.0;
 
     sailToBoatAngle = 0;
     sailToBoatOrientation = "0";
@@ -226,8 +226,11 @@ void Boat::step()
 
 
     double delta_t = 0.001;
-    x += (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getSinFromDegrees(azimuth) / 100000.0;
-    y -= (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getCosFromDegrees(azimuth) / 100000.0;
+//    It seems, this calculations were correct for SCREEN coords, not for REAL
+//    x += (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getSinFromDegrees(azimuth) / 100000.0;
+//    y -= (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getCosFromDegrees(azimuth) / 100000.0;
+    x += (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getSinFromDegrees(azimuth);
+    y += (boatVelocity * delta_t + a * delta_t * delta_t / 2) * World->getCosFromDegrees(azimuth);
 
     boatVelocity += a * delta_t;
 }
