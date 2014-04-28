@@ -1,28 +1,20 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2014-04-17T10:27:34
+# Project created by QtCreator 2014-04-28T15:14:21
 #
 #-------------------------------------------------
 
-QT       += core
+QT       += core gui
 
-QT       -= gui
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = optisail
-CONFIG   += console
-CONFIG   -= app_bundle
-
 TEMPLATE = app
 
 
-SOURCES += main.cpp \
-    nature.cpp \
-    boat.cpp \
-    interpolation.cpp \
-    action.cpp
+SOURCES += main.cpp\
+        mainwindow.cpp
 
-HEADERS += \
-    nature.h \
-    boat.h \
-    interpolation.h \
-    action.h
+HEADERS  += mainwindow.h
+
+FORMS    += mainwindow.ui
