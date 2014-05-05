@@ -10,9 +10,10 @@ int main(int argc, char *argv[])
     Boat *boat = new Boat(mass, sailSurface, s, azimuth, world);
     Action *a = new Action(boat);
 
-    boat->setSailToBoatAngle(0);
     world->setWindAngle(330);
     boat->setRudderAngle(0);
+    //boat->optimizeSailAngle(int(world->getWindAngleN()));
+    boat->setSailToBoatAngle(0);
 
     a->startSimulation();
     a->startInfoTimer(200);

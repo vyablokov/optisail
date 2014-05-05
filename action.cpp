@@ -10,7 +10,10 @@ Action::Action(Boat *b, QObject *parent) :
     connect(infoTimer, SIGNAL(timeout()), this, SLOT(showInfo()));
     simulationStarted = false;
     cmd = ' ';
+    firstPoint = true;
+    track.open("track.txt",std::ios::out);
 }
+
 
 void Action::startSimulation()
 {
@@ -30,6 +33,17 @@ void Action::stopTimers()
     infoTimer->stop();
 }
 
+void Action::writePointToTrack()
+{
+    if(!firstPoint)
+        track.open("track.txt", std::ios::app);
+    else
+        firstPoint = false;
+    track<<std::fixed<<std::setprecision(2);
+    track<<boat->getX()<<"\t"<<boat->getY()<<"\n";
+    track.close();
+}
+
 void Action::showInfo()
 {
 #ifdef _WIN32
@@ -45,6 +59,8 @@ void Action::showInfo()
     std::cout<<"WaterResistForce: "<<boat->getWaterResistForce()<<" N\n";
     std::cout<<"X: "<<boat->getX()<<" m\n";
     std::cout<<"Y: "<<boat->getY()<<" m\n";
+
+    writePointToTrack();
 }
 
 void Action::tick()

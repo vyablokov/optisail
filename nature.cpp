@@ -7,9 +7,9 @@ Nature::Nature ()
     waterWeight = 1000;
     windVelocity = 10;
     windAngle = 0;
-    k = 2.0 * 0.01;
+    k = 2.0 * 0.001;
     useWindB = false;
-    PI = 3.14;
+    PI = 3.1415;
     gAcceleration = 9.8;
 }
 
