@@ -18,11 +18,9 @@ TEMPLATE = app
 SOURCES += main.cpp \
     nature.cpp \
     boat.cpp \
-    interpolation.cpp \
-    action.cpp
+    interpolation.cpp
 
 HEADERS += \
     nature.h \
     boat.h \
-    interpolation.h \
-    action.h
+    interpolation.h
