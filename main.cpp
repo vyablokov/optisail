@@ -9,26 +9,67 @@
 
 #define DELTA_X 5
 #define DELTA_F 0.1
-#define k 0.5
+#define k 0.05
 
 double mass = 75, sailSurface = 10, s = 2;
 Nature *world;
 Boat *boat;
 int windAngle = 105;
 
+double fmin (double a, double b)
+{
+    if(a > b) return b;
+    else return a;
+}
+
+double fmax (double a, double b)
+{
+    if(a > b) return a;
+    else return b;
+}
+
+// Проверка вхождения точки в пределы многоугольника (1 если входит, 0 если нет)
+int pointInPoly( double pgon[][2], int numverts, double* point )
+{
+    int i, crossings = 0;
+
+    for ( i = 0; i < numverts; i++ ) {
+
+        double x1 = pgon[i][0];
+        double y1 = pgon[i][1];
+        double x2 = pgon[(i + 1) % numverts][0];
+        double y2 = pgon[(i + 1) % numverts][1];
+        double d = (point[1] - y1) * (x2 - x1) - (point[0] - x1) * (y2 - y1);
+
+        if ( (y1 >= point[1]) != (y2 >= point[1]) ) {
+            crossings += y2 - y1 >= 0 ? d >= 0 : d <= 0;
+        }
+
+        if ( !d && fmin( x1, x2 ) <= point[0] && point[0] <= fmax( x1, x2 )
+                && fmin( y1, y2 ) <= point[1] && point[1] <= fmax( y1, y2 ) ) {
+            return 1;
+        }
+    }
+    return crossings & 1;
+}
+
+// Расстояние между точками
 double calcDistance(double* startPoint, double* destPoint) {
     return sqrt((destPoint[1] - startPoint[1])*(destPoint[1] - startPoint[1]) + (destPoint[0] - startPoint[0])*(destPoint[0] - startPoint[0]));
 }
 
+// Азимут от точки до точки
 int calcAzimuth(double* startPoint, double* destPoint) {
     return 90 - world->toDegrees(asin((destPoint[1] - startPoint[1]) / calcDistance(startPoint, destPoint)));
 }
 
+// Угол ветра относительно азимута
 int calcRelativeWindAngle(double* startPoint, double* destPoint)
 {
     return world->sub360(windAngle, calcAzimuth(startPoint, destPoint));
 }
 
+// Время прямого пути от точки до точки
 double calcTravelTime(double* startPoint, double* destPoint)
 {
     boat->optimizeSailAngle(calcRelativeWindAngle(startPoint, destPoint));
@@ -42,11 +83,13 @@ double calcTravelTime(double* startPoint, double* destPoint)
     return travelTime;
 }
 
+// Общее время пути до и после поворота
 double calcTotalTime(double* startPoint, double* turnPoint, double* destPoint)
 {
     return calcTravelTime(startPoint, turnPoint) + calcTravelTime(turnPoint, destPoint);
 }
 
+// Проверка на слишком острый курс
 bool tooSharpCourse(double* startPoint, double* destPoint)
 {
     int relativeWindAngle = calcRelativeWindAngle(startPoint, destPoint);
@@ -56,8 +99,9 @@ bool tooSharpCourse(double* startPoint, double* destPoint)
         return false;
 }
 
-void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint) {
-    double totalTime;
+// Определение оптимальной точки поворота
+void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime) {
+    double totalTime = badTravelTime;
     double bestTime;
     double curTurnPoint[2];
     bestTurnPoint[0] = destPoint[0];
@@ -65,7 +109,6 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint) 
     bool firstIter = true;
 
     //Method I (равномерный поиск)
-
     double leftBound, rightBound, upBound, downBound;
     double margin = calcDistance(startPoint, destPoint) * 2;
     if (startPoint[0] < destPoint[0])
@@ -285,6 +328,7 @@ int main(int argc, char *argv[])
     int azimuth = 0;
     double startPoint[2] = {0, 0};
     double destPoint[2] = {0, 3000};
+    double travelTime = 0x7ff0000000000000;
     world = new Nature();
     boat = new Boat(mass, sailSurface, s, azimuth, world);
 
@@ -292,9 +336,9 @@ int main(int argc, char *argv[])
 
     if(!tooSharpCourse(startPoint, destPoint))
     {
-        double travelTime = calcTravelTime(startPoint, destPoint);
+        travelTime = calcTravelTime(startPoint, destPoint);
 
-        std::cout<<calcRelativeWindAngle(startPoint, destPoint)<<"\n";
+        //std::cout<<calcRelativeWindAngle(startPoint, destPoint)<<"\n";
 
         std::cout<<"Parameters of straight course\n";
         std::cout<<"Distance: "<<calcDistance(startPoint, destPoint)<<" m\n";
@@ -310,7 +354,7 @@ int main(int argc, char *argv[])
     double point2[2];
     double point3[2];
 
-    getTurnPoint(point1, startPoint, destPoint);
+    getTurnPoint(point1, startPoint, destPoint, travelTime);
 
     if (calcDistance(point1, destPoint) < 1)
         std::cout<<"Straight course is optimal.\n";
