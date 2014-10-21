@@ -9,7 +9,7 @@
 
 #define DELTA_X 5
 #define DELTA_F 0.1
-#define k 0.05
+#define k 0.5
 
 double mass = 75, sailSurface = 10, s = 2;
 Nature *world;
@@ -60,7 +60,8 @@ double calcDistance(double* startPoint, double* destPoint) {
 
 // Азимут от точки до точки
 int calcAzimuth(double* startPoint, double* destPoint) {
-    return 90 - world->toDegrees(asin((destPoint[1] - startPoint[1]) / calcDistance(startPoint, destPoint)));
+    int azimuth = 90 - world->toDegrees(asin((destPoint[1] - startPoint[1]) / calcDistance(startPoint, destPoint)));
+    return azimuth;
 }
 
 // Угол ветра относительно азимута
@@ -107,7 +108,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
     bestTurnPoint[0] = destPoint[0];
     bestTurnPoint[1] = destPoint[1];
     bool firstIter = true;
-
+    /*
     //Method I (равномерный поиск)
     double leftBound, rightBound, upBound, downBound;
     double margin = calcDistance(startPoint, destPoint) * 2;
@@ -171,9 +172,10 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
     }
     surface.close();
     /////////////////
+    */
 
-    //Method II (случ. поиск с пост. радиусом + метод Паулла)
-    /*double radius;
+    // Method II (случ. поиск с пост. радиусом + метод Паулла)
+    double radius;
     double prevTotalTime = 0;
     int azimuth = 0;
     double bestAzimuth = 0;
@@ -241,13 +243,13 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             time1 = calcTotalTime(startPoint, point1, destPoint);
             time2 = calcTotalTime(startPoint, point2, destPoint);
             time3 = calcTotalTime(startPoint, point3, destPoint);
-            if(calcAzimuth(prevTurnPoint, point1) != bestAzimuth) sign = -1;
+            if(fabs(calcAzimuth(prevTurnPoint, point1) - bestAzimuth) > 90) sign = -1;
             else sign = 1;
             x1 = sign * calcDistance(prevTurnPoint, point1);
-            if(calcAzimuth(prevTurnPoint, point2) != bestAzimuth) sign = -1;
+            if(fabs(calcAzimuth(prevTurnPoint, point2) - bestAzimuth) > 90) sign = -1;
             else sign = 1;
             x2 = sign * calcDistance(prevTurnPoint, point2);
-            if(calcAzimuth(prevTurnPoint, point3) != bestAzimuth) sign = -1;
+            if(fabs(calcAzimuth(prevTurnPoint, point3) - bestAzimuth) > 90) sign = -1;
             else sign = 1;
             x3 = sign * calcDistance(prevTurnPoint, point3);
             e23 = x2*x2 - x3*x3;
@@ -256,7 +258,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             r23 = x2 - x3;
             r13 = x1 - x3;
             r12 = x1 - x2;
-            xSqRoot = (time1*e23 - time2*e13 + time3*e12) / (time1*r23 - time2*r13 + time3*r12) / 2;
+            xSqRoot = (time1*e23 - time2*e13 + time3*e12) / ((time1*r23 - time2*r13 + time3*r12) * 2.0);
             sqRootPoint[0] = prevTurnPoint[0] + xSqRoot * world->getCosFromDegrees(90 - bestAzimuth);
             sqRootPoint[1] = prevTurnPoint[1] + xSqRoot * world->getSinFromDegrees(90 - bestAzimuth);
             totalTime = calcTotalTime(startPoint, sqRootPoint, destPoint);
@@ -317,7 +319,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
         }
         while (calcDistance(point1, point3) > DELTA_X);
     }
-    while (fabs(totalTime - prevTotalTime) > DELTA_F);*/
+    while (fabs(totalTime - prevTotalTime) > DELTA_F);
     ///////////////
 }
 
