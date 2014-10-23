@@ -7,25 +7,38 @@
 #include <fstream>
 #include "boat.h"
 
-#define DELTA_X 5
+#define RESOLUTION 10
+#define DELTA_X 2
 #define DELTA_F 0.1
-#define k 0.5
+#define k 2.0
+#define RANDOM_POINTS 20
+#define VERTEX_NUM 5
 
 double mass = 75, sailSurface = 10, s = 2;
 Nature *world;
 Boat *boat;
 int windAngle = 105;
 
-double fmin (double a, double b)
+double fmin2 (double a, double b)
 {
     if(a > b) return b;
     else return a;
 }
 
-double fmax (double a, double b)
+double fmax2 (double a, double b)
 {
     if(a > b) return a;
     else return b;
+}
+
+double fmin3 (double a, double b, double c)
+{
+    return fmin2(fmin2(a, b), c);
+}
+
+double fmax3 (double a, double b, double c)
+{
+    return fmax2(fmax2(a, b), c);
 }
 
 // Проверка вхождения точки в пределы многоугольника (1 если входит, 0 если нет)
@@ -45,12 +58,31 @@ int pointInPoly( double pgon[][2], int numverts, double* point )
             crossings += y2 - y1 >= 0 ? d >= 0 : d <= 0;
         }
 
-        if ( !d && fmin( x1, x2 ) <= point[0] && point[0] <= fmax( x1, x2 )
-                && fmin( y1, y2 ) <= point[1] && point[1] <= fmax( y1, y2 ) ) {
+        if ( !d && fmin2( x1, x2 ) <= point[0] && point[0] <= fmax2( x1, x2 )
+                && fmin2( y1, y2 ) <= point[1] && point[1] <= fmax2( y1, y2 ) ) {
             return 1;
         }
     }
     return crossings & 1;
+}
+
+// Проверка пересечения отрезков
+bool intersect (double* a, double* b, double* c, double* d)
+{
+    double common = (b[0] - a[0])*(d[1] - c[1]) - (b[1] - a[1])*(d[0] - c[0]);
+
+    if (common == 0) return false;
+
+    double rH = (a[1] - c[1])*(d[0] - c[0]) - (a[0] - c[0])*(d[1] - c[1]);
+    double sH = (a[1] - c[1])*(b[0] - a[0]) - (a[0] - c[0])*(b[1] - a[1]);
+
+    double r = rH / common;
+    double s = sH / common;
+
+    if (r >= 0 && r <= 1 && s >= 0 && s <= 1)
+        return true;
+    else
+        return false;
 }
 
 // Расстояние между точками
@@ -60,7 +92,9 @@ double calcDistance(double* startPoint, double* destPoint) {
 
 // Азимут от точки до точки
 int calcAzimuth(double* startPoint, double* destPoint) {
-    int azimuth = 90 - world->toDegrees(asin((destPoint[1] - startPoint[1]) / calcDistance(startPoint, destPoint)));
+    int azimuth = world->sub360(90, world->toDegrees(acos((destPoint[0] - startPoint[0]) / calcDistance(startPoint, destPoint))));
+    if(destPoint[1] < startPoint[1])
+        azimuth = world->sub360(-1 * azimuth, 180);
     return azimuth;
 }
 
@@ -100,18 +134,20 @@ bool tooSharpCourse(double* startPoint, double* destPoint)
         return false;
 }
 
-// Определение оптимальной точки поворота
-void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime) {
+
+// Определение оптимальной точки поворота простым способом
+void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime)
+{
+    //Method I (равномерный поиск)
     double totalTime = badTravelTime;
     double bestTime;
     double curTurnPoint[2];
     bestTurnPoint[0] = destPoint[0];
     bestTurnPoint[1] = destPoint[1];
     bool firstIter = true;
-    /*
-    //Method I (равномерный поиск)
     double leftBound, rightBound, upBound, downBound;
     double margin = calcDistance(startPoint, destPoint) * 2;
+
     if (startPoint[0] < destPoint[0])
     {
         leftBound = startPoint[0] - margin;
@@ -132,8 +168,8 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
         downBound = destPoint[1] - margin;
         upBound = startPoint[1] + margin;
     }
-    double step_x = fabs((rightBound - leftBound) / 5);
-    double step_y = fabs((upBound - downBound) / 5);
+    double step_x = fabs((rightBound - leftBound) / RESOLUTION);
+    double step_y = fabs((upBound - downBound) / RESOLUTION);
 
     std::ofstream surface;
     surface.open("surface.txt", std::ios::out);
@@ -149,7 +185,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
                     continue;
                 }
                 totalTime = calcTotalTime(startPoint, curTurnPoint, destPoint);
-                surface<<curTurnPoint[0]<<"\t"<<curTurnPoint[1]<<"\t"<<totalTime<<"\n\n";
+                surface<<curTurnPoint[0]<<"\t"<<curTurnPoint[1]<<"\t"<<totalTime<<"\n";
                 if(firstIter)
                 {
                     bestTime = totalTime;
@@ -163,23 +199,32 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
                 }
 
             }
+        //surface<<"\n";
         leftBound = bestTurnPoint[0] - step_x;
         rightBound = bestTurnPoint[0] + step_x;
         upBound = bestTurnPoint[1] + step_y;
         downBound = bestTurnPoint[1] - step_y;
-        step_x = fabs((rightBound - leftBound) / 5);
-        step_y = fabs((upBound - downBound) / 5);
+        step_x = fabs((rightBound - leftBound) / RESOLUTION);
+        step_y = fabs((upBound - downBound) / RESOLUTION);
     }
     surface.close();
-    /////////////////
-    */
+}
 
+// Определение оптимальной точки поворота
+void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime)
+{
     // Method II (случ. поиск с пост. радиусом + метод Паулла)
+    double totalTime = badTravelTime;
+    double bestTime;
+    double curTurnPoint[2];
+    bestTurnPoint[0] = destPoint[0];
+    bestTurnPoint[1] = destPoint[1];
+    bool firstIter = true;
     double radius;
     double prevTotalTime = 0;
     int azimuth = 0;
     double bestAzimuth = 0;
-    double point1[2], point2[2], point3[2], sqRootPoint[2];
+    double point1[2], point2[2], point3[2], sqRootPoint[2], prevBestPoint[2];
     double time1 = 0, time2 = 0, time3 = 0;
     double x1=0, x2=0, x3=0, xSqRoot=0, e23=0, e13=0, e12=0, r23=0, r13=0, r12=0;
     int sign=1;
@@ -187,20 +232,34 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
     sqRootPoint[0] = startPoint[0];
     sqRootPoint[1] = startPoint[1];
     //srand(time(NULL));
+    double radius_k = 25;
 
     do
     {
         prevTotalTime = totalTime;
         prevTurnPoint[0] = sqRootPoint[0];
         prevTurnPoint[1] = sqRootPoint[1];
-        radius = calcDistance(prevTurnPoint, destPoint) / 10;
+        radius = calcDistance(startPoint, destPoint) / radius_k;
         firstIter = true;
 
-        for(int i = 0; i < 30; i++) //выбираем направление поиска из случайных точек на окружности
+        /*
+        double a[2] = {0, 0}, b[2];
+        int real_az = 0;
+        for(;;)
         {
             azimuth = rand() % 360 ;
-            curTurnPoint[0] = prevTurnPoint[0] + radius * world->getCosFromDegrees(90 - azimuth);
-            curTurnPoint[1] = prevTurnPoint[1] + radius * world->getSinFromDegrees(90 - azimuth);
+            b[0] = a[0] + 100 * world->getCosFromDegrees(world->sub360(90, azimuth));
+            b[1] = a[1] + 100 * world->getSinFromDegrees(world->sub360(90, azimuth));
+            real_az = calcAzimuth(a, b);
+        }
+        */
+
+        for(int i = 0; i < RANDOM_POINTS; i++) //выбираем направление поиска из случайных точек на окружности
+        {            
+            azimuth = rand() % 360 ;
+            curTurnPoint[0] = prevTurnPoint[0] + radius * world->getCosFromDegrees(world->sub360(90, azimuth));
+            curTurnPoint[1] = prevTurnPoint[1] + radius * world->getSinFromDegrees(world->sub360(90, azimuth));
+            //double real_az = calcAzimuth(prevTurnPoint, curTurnPoint);
 
             if(tooSharpCourse(startPoint, curTurnPoint) || tooSharpCourse(curTurnPoint, destPoint))
             {
@@ -221,6 +280,12 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             }
         }
 
+        if (bestTime > prevTotalTime)
+        {
+            radius_k = radius_k / 2;
+            continue;
+        }
+
         point1[0] = bestTurnPoint[0];   //метод Паулла
         point1[1] = bestTurnPoint[1];
         point2[0] = point1[0] + k * radius * world->getCosFromDegrees(90 - bestAzimuth);
@@ -238,18 +303,37 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             point3[1] = point1[1] - k * radius * world->getSinFromDegrees(90 - bestAzimuth);
         }
 
+
         do
         {
             time1 = calcTotalTime(startPoint, point1, destPoint);
             time2 = calcTotalTime(startPoint, point2, destPoint);
             time3 = calcTotalTime(startPoint, point3, destPoint);
-            if(fabs(calcAzimuth(prevTurnPoint, point1) - bestAzimuth) > 90) sign = -1;
+
+            if(time1 == fmin3(time1, time2, time3))
+            {
+                prevBestPoint[0] = point1[0];
+                prevBestPoint[1] = point1[1];
+            }
+            if(time2 == fmin3(time1, time2, time3))
+            {
+                prevBestPoint[0] = point2[0];
+                prevBestPoint[1] = point2[1];
+            }
+            if(time3 == fmin3(time1, time2, time3))
+            {
+                prevBestPoint[0] = point3[0];
+                prevBestPoint[1] = point3[1];
+            }
+
+            //if(fabs(calcAzimuth(prevTurnPoint, point1) - bestAzimuth) > 90) sign = -1;
+            if(abs(calcAzimuth(prevTurnPoint, point1) - bestAzimuth) > 2) sign = -1;
             else sign = 1;
             x1 = sign * calcDistance(prevTurnPoint, point1);
-            if(fabs(calcAzimuth(prevTurnPoint, point2) - bestAzimuth) > 90) sign = -1;
+            if(abs(calcAzimuth(prevTurnPoint, point2) - bestAzimuth) > 2) sign = -1;
             else sign = 1;
             x2 = sign * calcDistance(prevTurnPoint, point2);
-            if(fabs(calcAzimuth(prevTurnPoint, point3) - bestAzimuth) > 90) sign = -1;
+            if(abs(calcAzimuth(prevTurnPoint, point3) - bestAzimuth) > 2) sign = -1;
             else sign = 1;
             x3 = sign * calcDistance(prevTurnPoint, point3);
             e23 = x2*x2 - x3*x3;
@@ -262,6 +346,14 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             sqRootPoint[0] = prevTurnPoint[0] + xSqRoot * world->getCosFromDegrees(90 - bestAzimuth);
             sqRootPoint[1] = prevTurnPoint[1] + xSqRoot * world->getSinFromDegrees(90 - bestAzimuth);
             totalTime = calcTotalTime(startPoint, sqRootPoint, destPoint);
+
+            if (totalTime > fmin3(time1, time2, time3) || totalTime < 0)
+            {
+                totalTime = fmin3(time1, time2, time3);
+                sqRootPoint[0] = prevBestPoint[0];
+                sqRootPoint[1] = prevBestPoint[1];
+                break;
+            }
 
             if(xSqRoot >= x2 && xSqRoot <= x3)
             {
@@ -317,19 +409,29 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
                 continue;
             }
         }
-        while (calcDistance(point1, point3) > DELTA_X);
+        //while (calcDistance(point1, point3) > DELTA_X);
+        while (fabs(calcTotalTime(startPoint, point2, destPoint) - calcTotalTime(startPoint, point3, destPoint)) > DELTA_F);
     }
-    while (fabs(totalTime - prevTotalTime) > DELTA_F);
-    ///////////////
+    while (fabs(totalTime - prevTotalTime) > DELTA_F && totalTime < prevTotalTime && radius > DELTA_X);
+    bestTurnPoint = prevTurnPoint;
+}
+
+double* processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* boundaries)
+{
+
 }
 
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
 
+    //double a1[2]={0,0}, a2[2]={0,10}, b1[2]={-1,0}, b2[2]={1,10};
+    //bool i = intersect(a1, a2, b1, b2);
+
     int azimuth = 0;
     double startPoint[2] = {0, 0};
     double destPoint[2] = {0, 3000};
+    double boundaries[VERTEX_NUM][2] = {{-200,200}, {-200,800}, {0,1200}, {200,800}, {200,200}};
     double travelTime = 0x7ff0000000000000;
     world = new Nature();
     boat = new Boat(mass, sailSurface, s, azimuth, world);
@@ -352,19 +454,22 @@ int main(int argc, char *argv[])
     else
         std::cout<<"Straight course is to sharp to pass.\n";
 
-    double point1[2];
-    double point2[2];
-    double point3[2];
+    double turnPoint[2];
+    //double point2[2];
+    //double point3[2];
 
-    getTurnPoint(point1, startPoint, destPoint, travelTime);
+    getTurnPointSimple(turnPoint, startPoint, destPoint, travelTime);  // Равномерный поиск
+    //getTurnPoint(turnPoint, startPoint, destPoint, travelTime); // Метод случ. поиска
 
-    if (calcDistance(point1, destPoint) < 1)
+    double* finalCourse = processRestrictions(startPoint, turnPoint, destPoint, boundaries);   // Обход препятствия
+
+    if (calcDistance(turnPoint, destPoint) < 1)
         std::cout<<"Straight course is optimal.\n";
     else
     {
         std::cout<<"Best travel time for \"1-turn\" course is ";
-        std::cout<<calcTotalTime(startPoint, point1, destPoint)<<" s\n";
-        std::cout<<"Turn point is at ["<<point1[0]<<";"<<point1[1]<<"]\n";
+        std::cout<<calcTotalTime(startPoint, turnPoint, destPoint)<<" s\n";
+        std::cout<<"Turn point is at ["<<turnPoint[0]<<";"<<turnPoint[1]<<"]\n";
     }
 
 
@@ -384,7 +489,7 @@ int main(int argc, char *argv[])
     waypoints.open("waypoints.txt", std::ios::out);
     waypoints<<std::fixed<<std::setprecision(2);
     waypoints<<startPoint[0]<<"\t"<<startPoint[1]<<"\n";
-    waypoints<<point1[0]<<"\t"<<point1[1]<<"\n";
+    waypoints<<turnPoint[0]<<"\t"<<turnPoint[1]<<"\n";
     waypoints<<destPoint[0]<<"\t"<<destPoint[1]<<"\n";
     waypoints.close();
 
