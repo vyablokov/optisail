@@ -446,7 +446,6 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
 double* processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
 {
 
-
 }
 
 int main(int argc, char *argv[])
