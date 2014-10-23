@@ -7,17 +7,18 @@
 #include <fstream>
 #include "boat.h"
 
-#define RESOLUTION 10
+#define RESOLUTION 4
 #define DELTA_X 2
 #define DELTA_F 0.1
 #define k 2.0
 #define RANDOM_POINTS 20
 #define VERTEX_NUM 5
 
-double mass = 75, sailSurface = 10, s = 2;
+double mass = 75, sailSurface = 10, s = 2, fullTurnTime = 15;
 Nature *world;
 Boat *boat;
 int windAngle = 105;
+std::ofstream waypoints;
 
 double fmin2 (double a, double b)
 {
@@ -67,7 +68,7 @@ int pointInPoly( double pgon[][2], int numverts, double* point )
 }
 
 // Проверка пересечения отрезков
-bool intersect (double* a, double* b, double* c, double* d)
+bool intersectLines (double* a, double* b, double* c, double* d)
 {
     double common = (b[0] - a[0])*(d[1] - c[1]) - (b[1] - a[1])*(d[0] - c[0]);
 
@@ -83,6 +84,34 @@ bool intersect (double* a, double* b, double* c, double* d)
         return true;
     else
         return false;
+}
+
+// Проверка пересечения отрезка и окружности
+bool intersectLineAndCircle    (   double* point1, double* point2, double* center, double radius)
+{
+    double p1[2], p2[2];
+    p1[0] = point1[0] - center[0];
+    p1[1] = point1[1] - center[1];
+    p2[0] = point2[0] - center[0];
+    p2[1] = point2[1] - center[1];
+
+
+    double dx = p2[0] - p1[0];
+    double dy = p2[1] - p1[1];
+
+    //составляем коэффициенты квадратного уравнения на пересечение прямой и окружности.
+    //если на отрезке [0..1] есть отрицательные значения, значит отрезок пересекает окружность
+    double a = dx*dx + dy*dy;
+    double b = 2.*(p1[0]*dx + p1[1]*dy);
+    double c = p1[0]*p1[0] + p1[1]*p1[1] - radius*radius;
+
+    //а теперь проверяем, есть ли на отрезке [0..1] решения
+    if (-b < 0)
+        return (c < 0);
+    if (-b < (2.*a))
+        return ((4.*a*c - b*b) < 0);
+
+    return (a+b+c < 0);
 }
 
 // Вычисление геометрического ограничения (окружность)
@@ -138,10 +167,16 @@ double calcTravelTime(double* startPoint, double* destPoint)
     return travelTime;
 }
 
+// Расчет времени поворота
+double calcTurnTime(double* startPoint, double* turnPoint, double* destPoint)
+{
+    return ( abs(calcAzimuth(turnPoint, destPoint) - calcAzimuth(startPoint, turnPoint)) / 360.0 ) * fullTurnTime;
+}
+
 // Общее время пути до и после поворота
 double calcTotalTime(double* startPoint, double* turnPoint, double* destPoint)
 {
-    return calcTravelTime(startPoint, turnPoint) + calcTravelTime(turnPoint, destPoint);
+    return calcTravelTime(startPoint, turnPoint) + calcTravelTime(turnPoint, destPoint) + calcTurnTime(startPoint, turnPoint, destPoint);
 }
 
 double calcTotalTimeWithRestriction(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
@@ -443,30 +478,80 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
     bestTurnPoint = prevTurnPoint;
 }
 
-double* processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
+// Рекурсивная оптимизация курса с одним поворотом с учетом препятствия и запись точек поворота в файл
+double processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
 {
+    double newTurnPoint[2];
+    double complexTravelTime = 0;
 
+    if(intersectLineAndCircle(startPoint, turnPoint, islandCenter, islandRadius))
+    {
+        getTurnPointSimple(newTurnPoint, startPoint, turnPoint, 0x7ff0000000000000, islandCenter, islandRadius);
+        processRestrictions(startPoint, newTurnPoint, turnPoint, islandCenter, islandRadius);
+    }
+    else
+        complexTravelTime += calcTravelTime(startPoint, turnPoint);
+
+
+    waypoints<<turnPoint[0]<<"\t"<<turnPoint[1]<<"\n";
+    std::cout<<turnPoint[0]<<"\t"<<turnPoint[1]<<"\n";
+    complexTravelTime += calcTurnTime(startPoint, turnPoint, destPoint);
+
+    if(intersectLineAndCircle(turnPoint, destPoint, islandCenter, islandRadius))
+    {
+        getTurnPointSimple(newTurnPoint, turnPoint, destPoint, 0x7ff0000000000000, islandCenter, islandRadius);
+        processRestrictions(turnPoint, newTurnPoint, destPoint, islandCenter, islandRadius);
+    }
+    else
+        complexTravelTime += calcTravelTime(turnPoint, destPoint);
+
+    return complexTravelTime;
+}
+
+// Генерация скрипта для Gnuplot
+void writeGnuplotScript(double* startPoint, double* destPoint, double* islandCenter, double islandRadius)
+{
+    double scale = calcDistance(startPoint, destPoint);
+    double xmin = fmin2(startPoint[0],destPoint[0]) - scale/3;
+    double xmax = fmax2(startPoint[0],destPoint[0]) + scale/3;
+    double ymin = fmin2(startPoint[1],destPoint[1]) - scale/3;
+    double ymax = fmax2(startPoint[1],destPoint[1]) + scale/3;
+    double ratio = (ymax - ymin) / (xmax - xmin);
+
+    std::ofstream script;
+    script.open("results.plt", std::ios::out);
+    script<<"set term x11\n";
+    script<<"set multiplot\n";
+    script<<"set parametric\n";
+    script<<"set xrange ["<<xmin<<":"<<xmax<<"]\n";
+    script<<"set yrange ["<<ymin<<":"<<ymax<<"]\n";
+    script<<"set size ratio "<<ratio<<"\n";
+    script<<"set title \"Optimal course\"\n";
+    script<<"set arrow from "<<xmax - scale / 4 + scale / 6 * world->getCosFromDegrees(90 - windAngle)<<","<<ymax - scale / 4 + scale / 6 * world->getSinFromDegrees(90 - windAngle)<<" to "<<xmax - scale / 4<<","<<ymax - scale / 4<<"\n";
+    script<<"plot [0:2*pi] "<<islandRadius<<"*sin(t)+("<<islandCenter[0]<<"),"<<islandRadius<<"*cos(t)+("<<islandCenter[1]<<") lt 1 notitle\n";
+    script<<"plot 'waypoints.txt' w l lt 3 notitle\n";
+    script<<"pause mouse\n";
+
+    script.close();
 }
 
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
 
-    //double a1[2]={0,0}, a2[2]={0,10}, b1[2]={-1,0}, b2[2]={1,10};
-    //bool i = intersect(a1, a2, b1, b2);
-
     int azimuth = 0;
     double startPoint[2] = {0, 0};
     double destPoint[2] = {0, 3000};
-    //{{-200,200}, {-200,800}, {0,1200}, {200,800}, {200,200}}
-    double islandCenter[2] = {300, 2500};
-    double islandRadius = 300;
+    double islandCenter[2] = {0, 2500};
+    double islandRadius = 10;
     double travelTime = 0x7ff0000000000000;
+    double turnPoint[2];
     world = new Nature();
     boat = new Boat(mass, sailSurface, s, azimuth, world);
 
     std::cout<<std::fixed<<std::setprecision(2);
 
+    // Проверка, не лежат ли точки отправления и назначения в запретной области
     if(calcCircleRestriction(startPoint, islandCenter, islandRadius) <= 0)
     {
         std::cout<<"Start point is on restricted square!\n";
@@ -478,11 +563,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // Вычисление времени прямого пути, если он возможен
     if(!tooSharpCourse(startPoint, destPoint))
     {
         travelTime = calcTravelTime(startPoint, destPoint);
-
-        //std::cout<<calcRelativeWindAngle(startPoint, destPoint)<<"\n";
 
         std::cout<<"Parameters of straight course\n";
         std::cout<<"Distance: "<<calcDistance(startPoint, destPoint)<<" m\n";
@@ -494,44 +578,33 @@ int main(int argc, char *argv[])
     else
         std::cout<<"Straight course is to sharp to pass.\n";
 
-    double turnPoint[2];
-    //double point2[2];
-    //double point3[2];
-
+    // Получение курса с одним поворотом
     getTurnPointSimple(turnPoint, startPoint, destPoint, travelTime, islandCenter, islandRadius);  // Равномерный поиск
     //getTurnPoint(turnPoint, startPoint, destPoint, travelTime); // Метод случ. поиска
 
-    double* finalCourse = processRestrictions(startPoint, turnPoint, destPoint, islandCenter, islandRadius);   // Обход препятствия
 
-    if (calcDistance(turnPoint, destPoint) < 1)
-        std::cout<<"Straight course is optimal.\n";
-    else
-    {
-        std::cout<<"Best travel time for \"1-turn\" course is ";
-        std::cout<<calcTotalTime(startPoint, turnPoint, destPoint)<<" s\n";
-        std::cout<<"Turn point is at ["<<turnPoint[0]<<";"<<turnPoint[1]<<"]\n";
-    }
-
-
-    /*getTurnPoint(point2, startPoint, destPoint);
-    getTurnPoint(point1, startPoint, point2);
-    getTurnPoint(point3, point2, destPoint);
-
-    std::cout<<"Waypoints:\n";
-    std::cout<<startPoint[0]<<"\t"<<startPoint[1]<<"\n";
-    std::cout<<point1[0]<<"\t"<<point1[1]<<"\n";
-    std::cout<<point2[0]<<"\t"<<point2[1]<<"\n";
-    std::cout<<point3[0]<<"\t"<<point3[1]<<"\n";
-    std::cout<<destPoint[0]<<"\t"<<destPoint[1]<<"\n";
-    std::cout<<"Time: "<<calcTotalTime(startPoint, point1, point2) + calcTotalTime(point2, point3, destPoint)<<" s\n";*/
-
-    std::ofstream waypoints;
+    // Обработка обхода препятствий и сохранение точек поворота в файл
+    std::cout<<"Calculating optimal waypoints:\n";
     waypoints.open("waypoints.txt", std::ios::out);
     waypoints<<std::fixed<<std::setprecision(2);
     waypoints<<startPoint[0]<<"\t"<<startPoint[1]<<"\n";
-    waypoints<<turnPoint[0]<<"\t"<<turnPoint[1]<<"\n";
+    std::cout<<startPoint[0]<<"\t"<<startPoint[1]<<"\n";
+    double complexTravelTime = processRestrictions(startPoint, turnPoint, destPoint, islandCenter, islandRadius);   // Обход препятствия
     waypoints<<destPoint[0]<<"\t"<<destPoint[1]<<"\n";
+    std::cout<<destPoint[0]<<"\t"<<destPoint[1]<<"\n";
     waypoints.close();
+
+    writeGnuplotScript(startPoint, destPoint, islandCenter, islandRadius);
+
+    if (calcTravelTime(startPoint, destPoint) < complexTravelTime)
+        std::cout<<"Straight course is optimal.\n";
+    else
+    {
+        std::cout<<"Best travel time for complex optimal course is ";
+        std::cout<<complexTravelTime<<" s\n";
+    }
+
+    system("gnuplot results.plt");
 
     exit(0);
     return app.exec();
