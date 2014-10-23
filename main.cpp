@@ -85,6 +85,26 @@ bool intersect (double* a, double* b, double* c, double* d)
         return false;
 }
 
+// Вычисление геометрического ограничения (окружность)
+double calcCircleRestriction(double* point, double* center, double radius)
+{
+    double r = (point[0] - center[0])*(point[0] - center[0]) + (point[1] - center[1])*(point[1] - center[1]) - radius*radius;
+    return r;
+}
+
+// Вычисление штрафной функции
+double banFunction(double* point, double* center, double radius)
+{
+    double g = calcCircleRestriction(point, center, radius);
+    double phi = 0;
+    double n = 2;
+    if(g >= 0)
+        phi = 1 / pow(g, n);
+    else
+        phi = INFINITY;
+    return phi;
+}
+
 // Расстояние между точками
 double calcDistance(double* startPoint, double* destPoint) {
     return sqrt((destPoint[1] - startPoint[1])*(destPoint[1] - startPoint[1]) + (destPoint[0] - startPoint[0])*(destPoint[0] - startPoint[0]));
@@ -124,6 +144,12 @@ double calcTotalTime(double* startPoint, double* turnPoint, double* destPoint)
     return calcTravelTime(startPoint, turnPoint) + calcTravelTime(turnPoint, destPoint);
 }
 
+double calcTotalTimeWithRestriction(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
+{
+    return calcTotalTime(startPoint, turnPoint, destPoint) + banFunction(turnPoint, islandCenter, islandRadius);
+}
+
+
 // Проверка на слишком острый курс
 bool tooSharpCourse(double* startPoint, double* destPoint)
 {
@@ -136,7 +162,7 @@ bool tooSharpCourse(double* startPoint, double* destPoint)
 
 
 // Определение оптимальной точки поворота простым способом
-void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime)
+void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime, double* islandCenter, double islandRadius)
 {
     //Method I (равномерный поиск)
     double totalTime = badTravelTime;
@@ -184,8 +210,9 @@ void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destP
                 {
                     continue;
                 }
-                totalTime = calcTotalTime(startPoint, curTurnPoint, destPoint);
-                surface<<curTurnPoint[0]<<"\t"<<curTurnPoint[1]<<"\t"<<totalTime<<"\n";
+                //totalTime = calcTotalTime(startPoint, curTurnPoint, destPoint);
+                totalTime = calcTotalTimeWithRestriction(startPoint, curTurnPoint, destPoint, islandCenter, islandRadius);
+                surface<<curTurnPoint[0]<<"\t"<<curTurnPoint[1]<<"\t"<<totalTime<<"\n\n";
                 if(firstIter)
                 {
                     bestTime = totalTime;
@@ -416,8 +443,9 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
     bestTurnPoint = prevTurnPoint;
 }
 
-double* processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* boundaries)
+double* processRestrictions(double* startPoint, double* turnPoint, double* destPoint, double* islandCenter, double islandRadius)
 {
+
 
 }
 
@@ -431,12 +459,25 @@ int main(int argc, char *argv[])
     int azimuth = 0;
     double startPoint[2] = {0, 0};
     double destPoint[2] = {0, 3000};
-    double boundaries[VERTEX_NUM][2] = {{-200,200}, {-200,800}, {0,1200}, {200,800}, {200,200}};
+    //{{-200,200}, {-200,800}, {0,1200}, {200,800}, {200,200}}
+    double islandCenter[2] = {300, 2500};
+    double islandRadius = 300;
     double travelTime = 0x7ff0000000000000;
     world = new Nature();
     boat = new Boat(mass, sailSurface, s, azimuth, world);
 
     std::cout<<std::fixed<<std::setprecision(2);
+
+    if(calcCircleRestriction(startPoint, islandCenter, islandRadius) <= 0)
+    {
+        std::cout<<"Start point is on restricted square!\n";
+        exit(1);
+    }
+    if(calcCircleRestriction(destPoint, islandCenter, islandRadius) <= 0)
+    {
+        std::cout<<"Destination point is on restricted square!\n";
+        exit(1);
+    }
 
     if(!tooSharpCourse(startPoint, destPoint))
     {
@@ -458,10 +499,10 @@ int main(int argc, char *argv[])
     //double point2[2];
     //double point3[2];
 
-    getTurnPointSimple(turnPoint, startPoint, destPoint, travelTime);  // Равномерный поиск
+    getTurnPointSimple(turnPoint, startPoint, destPoint, travelTime, islandCenter, islandRadius);  // Равномерный поиск
     //getTurnPoint(turnPoint, startPoint, destPoint, travelTime); // Метод случ. поиска
 
-    double* finalCourse = processRestrictions(startPoint, turnPoint, destPoint, boundaries);   // Обход препятствия
+    double* finalCourse = processRestrictions(startPoint, turnPoint, destPoint, islandCenter, islandRadius);   // Обход препятствия
 
     if (calcDistance(turnPoint, destPoint) < 1)
         std::cout<<"Straight course is optimal.\n";
