@@ -13,6 +13,7 @@
 #define k 2.0
 #define RANDOM_POINTS 20
 #define VERTEX_NUM 5
+//#define USE_ADVANCED_METHOD
 
 double mass = 75, sailSurface = 10, s = 2, fullTurnTime = 15;
 Nature *world;
@@ -207,7 +208,7 @@ void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destP
     bestTurnPoint[1] = destPoint[1];
     bool firstIter = true;
     double leftBound, rightBound, upBound, downBound;
-    double margin = calcDistance(startPoint, destPoint) * 2;
+    double margin = calcDistance(startPoint, destPoint) / 2;
 
     if (startPoint[0] < destPoint[0])
     {
@@ -273,7 +274,7 @@ void getTurnPointSimple(double* bestTurnPoint, double* startPoint, double* destP
 }
 
 // Определение оптимальной точки поворота
-void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime)
+void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime, double* islandCenter, double islandRadius)
 {
     // Method II (случ. поиск с пост. радиусом + метод Паулла)
     double totalTime = badTravelTime;
@@ -327,7 +328,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             {
                 continue;
             }
-            totalTime = calcTotalTime(startPoint, curTurnPoint, destPoint);
+            totalTime = calcTotalTimeWithRestriction(startPoint, curTurnPoint, destPoint, islandCenter, islandRadius);
             if(firstIter)
             {
                 bestTime = totalTime;
@@ -352,8 +353,8 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
         point1[1] = bestTurnPoint[1];
         point2[0] = point1[0] + k * radius * world->getCosFromDegrees(90 - bestAzimuth);
         point2[1] = point1[1] + k * radius * world->getSinFromDegrees(90 - bestAzimuth);
-        time1 = calcTotalTime(startPoint, point1, destPoint);
-        time2 = calcTotalTime(startPoint, point2, destPoint);
+        time1 = calcTotalTimeWithRestriction(startPoint, point1, destPoint, islandCenter, islandRadius);
+        time2 = calcTotalTimeWithRestriction(startPoint, point2, destPoint, islandCenter, islandRadius);
         if (time1 > time2)
         {
             point3[0] = point1[0] + 2 * k * radius * world->getCosFromDegrees(90 - bestAzimuth);
@@ -368,9 +369,9 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
 
         do
         {
-            time1 = calcTotalTime(startPoint, point1, destPoint);
-            time2 = calcTotalTime(startPoint, point2, destPoint);
-            time3 = calcTotalTime(startPoint, point3, destPoint);
+            time1 = calcTotalTimeWithRestriction(startPoint, point1, destPoint, islandCenter, islandRadius);
+            time2 = calcTotalTimeWithRestriction(startPoint, point2, destPoint, islandCenter, islandRadius);
+            time3 = calcTotalTimeWithRestriction(startPoint, point3, destPoint, islandCenter, islandRadius);
 
             if(time1 == fmin3(time1, time2, time3))
             {
@@ -407,7 +408,7 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             xSqRoot = (time1*e23 - time2*e13 + time3*e12) / ((time1*r23 - time2*r13 + time3*r12) * 2.0);
             sqRootPoint[0] = prevTurnPoint[0] + xSqRoot * world->getCosFromDegrees(90 - bestAzimuth);
             sqRootPoint[1] = prevTurnPoint[1] + xSqRoot * world->getSinFromDegrees(90 - bestAzimuth);
-            totalTime = calcTotalTime(startPoint, sqRootPoint, destPoint);
+            totalTime = calcTotalTimeWithRestriction(startPoint, sqRootPoint, destPoint, islandCenter, islandRadius);
 
             if (totalTime > fmin3(time1, time2, time3) || totalTime < 0)
             {
@@ -472,10 +473,22 @@ void getTurnPoint(double* bestTurnPoint, double* startPoint, double* destPoint, 
             }
         }
         //while (calcDistance(point1, point3) > DELTA_X);
-        while (fabs(calcTotalTime(startPoint, point2, destPoint) - calcTotalTime(startPoint, point3, destPoint)) > DELTA_F);
+        while (fabs(calcTotalTimeWithRestriction(startPoint, point2, destPoint, islandCenter, islandRadius) - calcTotalTimeWithRestriction(startPoint, point3, destPoint, islandCenter, islandRadius)) > DELTA_F);
     }
     while (fabs(totalTime - prevTotalTime) > DELTA_F && totalTime < prevTotalTime && radius > DELTA_X);
     bestTurnPoint = prevTurnPoint;
+}
+
+// Метафункция для выбора метода оптимизации
+void optimizeTurn(double* bestTurnPoint, double* startPoint, double* destPoint, double badTravelTime, double* islandCenter, double islandRadius)
+{
+    // Получение курса с одним поворотом
+#ifdef USE_ADVANCED_METHOD
+    getTurnPoint(bestTurnPoint, startPoint, destPoint, badTravelTime, islandCenter, islandRadius);  // Метод случ. поиска + метод Паула
+#endif
+#ifndef USE_ADVANCER_METHOD
+    getTurnPointSimple(bestTurnPoint, startPoint, destPoint, badTravelTime, islandCenter, islandRadius); // Метод равномерного поиска
+#endif
 }
 
 // Рекурсивная оптимизация курса с одним поворотом с учетом препятствия и запись точек поворота в файл
@@ -486,7 +499,7 @@ double processRestrictions(double* startPoint, double* turnPoint, double* destPo
 
     if(intersectLineAndCircle(startPoint, turnPoint, islandCenter, islandRadius))
     {
-        getTurnPointSimple(newTurnPoint, startPoint, turnPoint, 0x7ff0000000000000, islandCenter, islandRadius);
+        optimizeTurn(newTurnPoint, startPoint, turnPoint, 0x7ff0000000000000, islandCenter, islandRadius);
         processRestrictions(startPoint, newTurnPoint, turnPoint, islandCenter, islandRadius);
     }
     else
@@ -499,7 +512,7 @@ double processRestrictions(double* startPoint, double* turnPoint, double* destPo
 
     if(intersectLineAndCircle(turnPoint, destPoint, islandCenter, islandRadius))
     {
-        getTurnPointSimple(newTurnPoint, turnPoint, destPoint, 0x7ff0000000000000, islandCenter, islandRadius);
+        optimizeTurn(newTurnPoint, turnPoint, destPoint, 0x7ff0000000000000, islandCenter, islandRadius);
         processRestrictions(turnPoint, newTurnPoint, destPoint, islandCenter, islandRadius);
     }
     else
@@ -541,9 +554,9 @@ int main(int argc, char *argv[])
 
     int azimuth = 0;
     double startPoint[2] = {0, 0};
-    double destPoint[2] = {0, 3000};
+    double destPoint[2] = {-300, 4000};
     double islandCenter[2] = {0, 2500};
-    double islandRadius = 10;
+    double islandRadius = 600;
     double travelTime = 0x7ff0000000000000;
     double turnPoint[2];
     world = new Nature();
@@ -579,12 +592,11 @@ int main(int argc, char *argv[])
         std::cout<<"Straight course is to sharp to pass.\n";
 
     // Получение курса с одним поворотом
-    getTurnPointSimple(turnPoint, startPoint, destPoint, travelTime, islandCenter, islandRadius);  // Равномерный поиск
-    //getTurnPoint(turnPoint, startPoint, destPoint, travelTime); // Метод случ. поиска
+    optimizeTurn(turnPoint, startPoint, destPoint, travelTime, islandCenter, islandRadius);
 
 
     // Обработка обхода препятствий и сохранение точек поворота в файл
-    std::cout<<"Calculating optimal waypoints:\n";
+    std::cout<<"\nCalculating optimal waypoints:\n";
     waypoints.open("waypoints.txt", std::ios::out);
     waypoints<<std::fixed<<std::setprecision(2);
     waypoints<<startPoint[0]<<"\t"<<startPoint[1]<<"\n";
