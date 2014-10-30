@@ -1,4 +1,3 @@
-set term x11
 set multiplot
 set parametric
 set xrange [-1000:1000]
