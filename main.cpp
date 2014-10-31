@@ -13,7 +13,7 @@
 #define k 2.0
 #define RANDOM_POINTS 20
 #define VERTEX_NUM 5
-#define WAYPOINTS_FILE "waypoints2.txt"
+#define WAYPOINTS_FILE "waypoints.txt"
 
 #define PRINT_WAYPOINTS
 //#define USE_ADVANCED_METHOD
@@ -558,7 +558,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     if(argc < 7 || (argc > 7 && argc < 10))
     {
-        std::cout<<"Usage: "<<argv[0]<<" BOAT_AZIMUTH SAIL_ANGLE START_X START_Y DESTINATION_X DESTINATION_Y [ISLAND_CENTER_X ISLAND_CENTER_Y ISLAND_RADIUS]";
+        std::cout<<"Usage: "<<argv[0]<<" BOAT_AZIMUTH WIND_METEO_ANGLE START_X START_Y DESTINATION_X DESTINATION_Y [ISLAND_CENTER_X ISLAND_CENTER_Y ISLAND_RADIUS]";
         exit(0);
     }
 
@@ -657,7 +657,7 @@ int main(int argc, char *argv[])
     }
     std::cout<<"Optimal waypoints were saved to \'"<<WAYPOINTS_FILE<<"\'\n";
 
-    //system("gnuplot results.plt");
+    system("gnuplot results.plt");
 
     exit(0);
     return app.exec();
